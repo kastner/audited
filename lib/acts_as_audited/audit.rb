@@ -124,12 +124,7 @@ class Audit < ActiveRecord::Base
 private
 
   def set_version_number
-    max = self.class.maximum(:version,
-      :conditions => {
-        :auditable_id => auditable_id,
-        :auditable_type => auditable_type
-      }) || 0
-    self.version = max + 1
+    self.version = (Time.now.to_f * 100_000).to_i
   end
 
   def set_audit_user

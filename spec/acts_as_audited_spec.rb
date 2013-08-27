@@ -234,16 +234,19 @@ describe ActsAsAudited::Auditor do
 
     it "access to only recent revisions" do
       u = User.create(:name => 'Brandon', :username => 'brandon')
+      t_1 = (Time.now.to_f * 100_000).to_i
       u.update_attributes :name => 'Foobar'
+      t_2 = (Time.now.to_f * 100_000).to_i
       u.update_attributes :name => 'Awesome', :username => 'keepers'
+      t_3 = (Time.now.to_f * 100_000).to_i
 
-      u.revisions(2).size.should == 2
+      u.revisions(t_1).size.should == 2
 
-      u.revisions(2)[0].name.should == 'Foobar'
-      u.revisions(2)[0].username.should == 'brandon'
+      u.revisions(t_1)[0].name.should == 'Foobar'
+      u.revisions(t_1)[0].username.should == 'brandon'
 
-      u.revisions(2)[1].name.should == 'Awesome'
-      u.revisions(2)[1].username.should == 'keepers'
+      u.revisions(t_1)[1].name.should == 'Awesome'
+      u.revisions(t_1)[1].username.should == 'keepers'
     end
 
     it "should be empty if no audits exist" do
@@ -259,39 +262,44 @@ describe ActsAsAudited::Auditor do
 
   describe "revisions" do
     let( :user ) { create_versions(5) }
+    let( :t_0 ) { (Time.now.to_f * 100_000).to_i }
 
     it "should maintain identity" do
       user.revision(1).should == user
     end
 
     it "should find the given revision" do
-      revision = user.revision(3)
+      revision = user.revision(t_0)
       revision.should be_a_kind_of( User )
-      revision.version.should be(3)
-      revision.name.should == 'Foobar 3'
+      revision.version.should < t_0
+      revision.name.should == 'Foobar 5'
     end
 
     it "should find the previous revision with :previous" do
       revision = user.revision(:previous)
-      revision.version.should be(4)
-      #revision.should == user.revision(4)
+      revision.version.should < t_0
+      revision.should == user.revision(revision.version)
       revision.attributes.should == user.revision(4).attributes
     end
 
     it "should be able to get the previous revision repeatedly" do
       previous = user.revision(:previous)
-      previous.version.should be(4)
-      previous.revision(:previous).version.should be(3)
+      t_1 = (Time.now.to_f * 100_000).to_i
+      previous.version.should < t_1
+      previous.revision(:previous).version.should < previous.version
     end
 
     it "should be able to set protected attributes" do
       u = User.create(:name => 'Brandon')
+      t_1 = (Time.now.to_f * 100_000).to_i
       u.update_attribute :logins, 1
+      t_2 = (Time.now.to_f * 100_000).to_i
       u.update_attribute :logins, 2
+      t_3 = (Time.now.to_f * 100_000).to_i
 
-      u.revision(3).logins.should be(2)
-      u.revision(2).logins.should be(1)
-      u.revision(1).logins.should be(0)
+      u.revision(t_3).logins.should be(2)
+      u.revision(t_2).logins.should be(1)
+      u.revision(t_1).logins.should be(0)
     end
 
     it "should set attributes directly" do
@@ -300,18 +308,22 @@ describe ActsAsAudited::Auditor do
     end
 
     it "should set the attributes for each revision" do
+      t_0 = (Time.now.to_f * 100_000).to_i
       u = User.create(:name => 'Brandon', :username => 'brandon')
+      t_1 = (Time.now.to_f * 100_000).to_i
       u.update_attributes :name => 'Foobar'
+      t_2 = (Time.now.to_f * 100_000).to_i
       u.update_attributes :name => 'Awesome', :username => 'keepers'
+      t_3 = (Time.now.to_f * 100_000).to_i
 
-      u.revision(3).name.should == 'Awesome'
-      u.revision(3).username.should == 'keepers'
+      u.revision(t_3).name.should == 'Awesome'
+      u.revision(t_3).username.should == 'keepers'
 
-      u.revision(2).name.should == 'Foobar'
-      u.revision(2).username.should == 'brandon'
+      u.revision(t_2).name.should == 'Foobar'
+      u.revision(t_2).username.should == 'brandon'
 
-      u.revision(1).name.should == 'Brandon'
-      u.revision(1).username.should == 'brandon'
+      u.revision(t_1).name.should == 'Brandon'
+      u.revision(t_1).username.should == 'brandon'
     end
 
     it "should be able to get time for first revision" do
@@ -347,9 +359,10 @@ describe ActsAsAudited::Auditor do
     let( :user ) { create_user }
 
     it "should find the latest revision before the given time" do
+      b_time = (Time.now.to_f * 100_000).to_i
       Audit.update( user.audits.first.id, :created_at => 1.hour.ago )
       user.update_attributes :name => 'updated'
-      user.revision_at( 2.minutes.ago ).version.should be(1)
+      user.revision_at( 2.minutes.ago ).version.should > b_time
     end
 
     it "should be nil if given a time before audits" do
